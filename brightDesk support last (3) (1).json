@@ -1,0 +1,995 @@
+{
+  "name": "brightDesk support last",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "authentication": "basicAuth",
+        "initialMessages": "Welcome to BrightDesk! I'm your support assistant. I can help with product questions, order status, shipping, and returns. How can I help you today?",
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "8eb47e2d-25cf-4590-a1dd-86f9b7ddf365",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        592,
+        1504
+      ],
+      "webhookId": "e0c904d4-0bfa-433b-b6db-3ee210fbb9d9",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "0ORZ4apKgEeAJ4VV",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are the automated First-Line Customer Support Agent for **BrightDesk GmbH**, serving home office customers across Germany and Austria (DACH region). Your job is to classify incoming customer inquiries, provide accurate and concise answers based strictly on internal store policies, and safely escalate edge cases to human support.\n\nAlways use the `knowledge_base` tool to look up product, shipping, returns, warranty, and policy details before answering a factual question.\n"
+        }
+      },
+      "id": "dc1efd04-36ac-420c-b671-76db6edd206c",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        960,
+        1264
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.3,
+          "providerRouting": {
+            "allowFallbacks": true,
+            "dataCollection": "allow"
+          }
+        }
+      },
+      "id": "0b9c8d47-f595-4a9c-98c6-c154cb5b3b17",
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        816,
+        1520
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "Z8ozOpzlq3cSCMiB",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 10
+      },
+      "id": "8646bc66-08da-486d-abe4-a4a1d303649e",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        944,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const PRICE_IN = 0.30 / 1e6;\nconst out = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const start = $('Record Start').all()[i].json;\n  const err = items[i].json || {};\n  const userInput = String(start.userInput || '');\n  const inTok = Math.ceil(userInput.length / 4);\n  const errMsg = (err.error && (err.error.message || err.error.description)) || err.error || 'Agent execution failed';\n  out.push({ json: {\n    timestamp: new Date().toISOString(),\n    session_id: start.sessionId || '',\n    user_input: userInput,\n    agent_output: '',\n    latency_ms: Date.now() - Number(start.startedAt),\n    est_input_tokens: inTok,\n    est_output_tokens: 0,\n    est_cost_usd: Number((inTok * PRICE_IN).toFixed(6)),\n    quality_score: '',\n    success: false,\n    error: String(errMsg),\n  } });\n}\nreturn out;"
+      },
+      "id": "d6c0b05f-1ea8-4d91-8196-d1b050898834",
+      "name": "Build Failure Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        1648
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE",
+          "mode": "list",
+          "cachedResultName": "bright desk log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "log failure",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "session_id": "={{ $json.session_id }}",
+            "user_input": "={{ $json.user_input }}",
+            "agent_output": "={{ $json.agent_output }}",
+            "latency_ms": "={{ $json.latency_ms }}",
+            "quality_score": "={{ $json.quality_score }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "user_input",
+              "displayName": "user_input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "agent_output",
+              "displayName": "agent_output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "latency_ms",
+              "displayName": "latency_ms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "input_tokens_est",
+              "displayName": "input_tokens_est",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "output_tokens_est",
+              "displayName": "output_tokens_est",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cost_usd_est",
+              "displayName": "cost_usd_est",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quality_score",
+              "displayName": "quality_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quality_reasoning",
+              "displayName": "quality_reasoning",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "error_message",
+              "displayName": "error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "c79d680a-6e50-4deb-b131-edfc0b2470a9",
+      "name": "Log Failure",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1808,
+        1728
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qgGrjLncoAlkVC60",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "endedAt",
+              "value": "={{ $now.toMillis() }}",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "bb779894-2c43-41eb-92d7-a4cae8bfb50e",
+      "name": "Mark End",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1568,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a strict QA evaluator for a customer-support assistant. Rate the quality of the ASSISTANT_ANSWER as a reply to the USER_QUESTION on an integer scale from 1 to 5, where 5 = accurate, complete and helpful, and 1 = incorrect, unhelpful or off-topic. Respond with ONLY the single integer, nothing else.\n\nUSER_QUESTION:\n{{ $('When chat message received').first().json.chatInput }}\n\nASSISTANT_ANSWER:\n{{ $('AI Agent').first().json.output }}",
+        "batching": {}
+      },
+      "id": "08227d6e-3238-40ca-9d40-81af007ad337",
+      "name": "Quality Judge",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1792,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "model": "google/gemini-2.5-flash",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "d3d0103b-dae0-4519-83ac-058cdcb06088",
+      "name": "Judge Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1872,
+        1488
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "Z8ozOpzlq3cSCMiB",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Estimated OpenRouter pricing for google/gemini-2.5-flash (USD per token)\nconst PRICE_IN = 0.30 / 1e6;\nconst PRICE_OUT = 2.50 / 1e6;\nconst out = [];\nconst items = $input.all();\n\nconst triggerData = $('When chat message received').first().json;\nconst agentData = $('AI Agent').first().json;\nconst endData = $('Mark End').first().json;\n\nconst startMs = new Date($execution.startTime).getTime();\nconst endMs = Number(endData.endedAt) || Date.now();\nconst latencyMs = endMs - startMs;\n\nconst userInput = String(triggerData.chatInput || '');\nconst agentOutput = String(agentData.output || '');\n\nfor (let i = 0; i < items.length; i++) {\n  const judgeText = String((items[i].json && items[i].json.text) || '');\n  const m = judgeText.match(/[1-5]/);\n  const quality = m ? Number(m[0]) : '';\n  \n  const inTok = Math.ceil(userInput.length / 4);\n  const outTok = Math.ceil(agentOutput.length / 4);\n  const cost = inTok * PRICE_IN + outTok * PRICE_OUT;\n\n  out.push({\n    json: {\n      timestamp: new Date().toISOString(),\n      session_id: triggerData.sessionId || '',\n      user_input: userInput,\n      agent_output: agentOutput,\n      latency_ms: latencyMs,\n      est_input_tokens: inTok,\n      est_output_tokens: outTok,\n      est_cost_usd: Number(cost.toFixed(6)),\n      quality_score: quality,\n      success: true,\n      error: '',\n    }\n  });\n}\nreturn out;"
+      },
+      "id": "aaa3526d-4de2-4169-9ddc-beaed24f0fd2",
+      "name": "Build Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE",
+          "mode": "list",
+          "cachedResultName": "bright desk log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 957925259,
+          "mode": "list",
+          "cachedResultName": "interactions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit#gid=957925259"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "timestamp": "={{ $json.timestamp }}",
+            "session_id": "={{ $json.session_id }}",
+            "user_input": "={{ $json.user_input }}",
+            "agent_output": "={{ $json.agent_output }}",
+            "latency_ms": "={{ $json.latency_ms }}",
+            "est_input_tokens": "={{ $json.est_input_tokens }}",
+            "est_output_tokens": "={{ $json.est_output_tokens }}",
+            "est_cost_usd": "={{ $json.est_cost_usd }}",
+            "quality_score": "={{ $json.quality_score }}",
+            "success": "={{ $json.success }}",
+            "error": "={{ $json.error }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "user_input",
+              "displayName": "user_input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "agent_output",
+              "displayName": "agent_output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "latency_ms",
+              "displayName": "latency_ms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "est_input_tokens",
+              "displayName": "est_input_tokens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "est_output_tokens",
+              "displayName": "est_output_tokens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "est_cost_usd",
+              "displayName": "est_cost_usd",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quality_score",
+              "displayName": "quality_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "success",
+              "displayName": "success",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d9e00c78-4453-4919-8aea-774fa3eb15d8",
+      "name": "Log Interaction",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2368,
+        1360
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qgGrjLncoAlkVC60",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        1728
+      ],
+      "id": "18c3fcbb-d1e8-4fa0-8359-e8f946065088",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "E8DKVRfvIdjHz2Nf",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search the BrightDesk product, shipping, returns and warranty knowledge base for accurate answers to customer questions.",
+        "tableName": {
+          "__rl": true,
+          "value": "kb_documents_gemini",
+          "mode": "list",
+          "cachedResultName": "kb_documents_gemini"
+        },
+        "options": {
+          "queryName": "match_documents_gemini"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1200,
+        1520
+      ],
+      "id": "4b1ec506-53f7-4a52-8289-a0a24e213be6",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "goHGRZFwVwWWDzmt",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE",
+          "mode": "list",
+          "cachedResultName": "bright desk log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2001023787,
+          "mode": "list",
+          "cachedResultName": "test scenarios",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit#gid=2001023787"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.session_id }}",
+            "user_input": "={{ $json.user_input }}",
+            "agent_response": "={{ $json.agent_output }}",
+            "latency_s": "={{ $json.latency_ms }}",
+            "task_success": "={{ $json.success }}",
+            "accuracy": "={{ $json.quality_score }}",
+            "token_cost": "={{ $json.est_cost_usd }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_input",
+              "displayName": "user_input",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intent",
+              "displayName": "intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "expected_behaviour",
+              "displayName": "expected_behaviour",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "agent_response",
+              "displayName": "agent_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "latency_s",
+              "displayName": "latency_s",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "task_success",
+              "displayName": "task_success",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "relevance",
+              "displayName": "relevance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "accuracy",
+              "displayName": "accuracy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tone",
+              "displayName": "tone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "completeness",
+              "displayName": "completeness",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "safe_failure",
+              "displayName": "safe_failure",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "verdict ",
+              "displayName": "verdict ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "token_cost",
+              "displayName": "token_cost",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2304,
+        1536
+      ],
+      "id": "cc794a24-034a-41bf-99f2-6f4f21434fa1",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qgGrjLncoAlkVC60",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2608,
+        1344
+      ],
+      "id": "961a378a-d9d9-4a2b-a77a-0cc2da5fa4b3",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2016,
+        1760
+      ],
+      "id": "9e2f427b-1ee1-40ab-8a8c-797ca240c52e",
+      "name": "Respond_other"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE",
+          "mode": "list",
+          "cachedResultName": "bright desk log",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 742612014,
+          "mode": "list",
+          "cachedResultName": "brightdesk_orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-_zvxg_nwTWbBaVHSmfmho3hxkpt8hcxuhdQTF7fwEE/edit#gid=742612014"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1072,
+        1616
+      ],
+      "id": "ad9e3196-c705-44a5-9448-d88c1ab99119",
+      "name": "orders",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "qgGrjLncoAlkVC60",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Mark End",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Failure Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Failure Metrics": {
+      "main": [
+        [
+          {
+            "node": "Log Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark End": {
+      "main": [
+        [
+          {
+            "node": "Quality Judge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Judge": {
+      "main": [
+        [
+          {
+            "node": "Build Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Quality Judge",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Metrics": {
+      "main": [
+        [
+          {
+            "node": "Log Interaction",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Interaction": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure": {
+      "main": [
+        [
+          {
+            "node": "Respond_other",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "orders": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "642c2e4a-ae03-4a98-9333-e6b0f6fcbf4e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff10f071e974f24f1e71a8b19a5d20e26d4987deffc399da2b4251d6346dfeb7"
+  },
+  "nodeGroups": [],
+  "id": "63mgirwrhd491QG2",
+  "tags": []
+}
